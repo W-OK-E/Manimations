@@ -133,21 +133,155 @@ class BasicScene(ThreeDScene):
         self.play(forward_pass)
 
         self.wait(2)
-        self.play(FadeOut(Group(en)))
-        
+        # self.play(FadeOut(Group(en)))
+        self.clear()
+        self.wait(1)
 
 
         ## Show a bunch of examples of the same:
-        orig1 = ImageMobject(horse).scale(0.5)
-        fake1 = ImageMobject(zebra).scale(0.5)
-        orig1.move_to(LEFT + UP*0.75)
-        fake1.move_to(RIGHT + UP*0.75)
-        self.play(FadeIn(orig1))
-        self.play(FadeIn(fake1))
-        self.wait(2)
-        img2 = ImageMobject('assets/Examples.jpeg').move_to(DOWN*0.5)
-        self.play(FadeIn(img2))
-        self.wait(2)
-
-
+        # orig1 = ImageMobject(horse).scale(0.5)
+        # fake1 = ImageMobject(zebra).scale(0.5)
+        # orig1.move_to(LEFT + UP*0.75)
+        # fake1.move_to(RIGHT + UP*0.75)
+        # self.play(FadeIn(orig1))
+        # self.play(FadeIn(fake1))
+        # self.wait(2)
+        # img2 = ImageMobject('assets/Examples.jpeg').move_to(DOWN*0.5)
+        # self.play(FadeIn(img2))
+        # self.wait(2)
         
+
+
+        text = Text("Examples of Image to Image Translation")
+        text.font_size = 15
+        self.play(Write(text))
+        self.play(FadeOut(text))
+        sum2wint = ImageMobject('assets/sum2wint.png').scale(0.4).move_to(LEFT*1.5 + UP*0.5)
+        self.play(Write(Text("Summer Landscape to\n   Winter Landscape").scale(0.2).move_to(LEFT*1.5+DOWN)))
+        self.play(FadeIn(sum2wint))
+        photo2paint = ImageMobject('assets/photo2paint.png').scale(0.4).move_to(RIGHT*1.5 + UP*0.5)
+        self.play(Write(Text("PhotoGraphs to Paintings").scale(0.2).move_to(RIGHT*1.5 + DOWN)))
+        self.play(FadeIn(photo2paint))
+
+        self.wait(2.0)
+
+        self.play(FadeOut(sum2wint),FadeOut(photo2paint))
+        self.clear()
+        self.wait(1)
+
+        text = Text("But how to do it?").scale(0.4).move_to(UP)
+        think = ImageMobject("assets/thinker.png").scale(0.5).move_to(DOWN*0.5)
+        self.add(think)
+        self.add(text)
+
+        self.wait(2)
+
+
+        #This section demonstrates the requirement for pair-wise iamges for style transfer
+        # Black and White and Color Image is taken
+        #############################################################333
+        img1 = ImageMobject("assets/bw.png").scale(1).to_edge(LEFT)
+        img2 = ImageMobject("assets/color.png").scale(1).to_edge(RIGHT)
+
+        # Model Box
+        model_box = Rectangle(width=1, height=1, color=WHITE)
+        model_label = Text("Model").scale(0.3).move_to(model_box.get_center())
+       
+        # Position model box in center
+        model_group = VGroup(model_box, model_label)
+        model_group.move_to(ORIGIN)
+
+        # Add initial image and model box
+        self.play(FadeIn(img1), FadeIn(img2))
+        self.wait(1)
+        self.play(FadeIn(model_group))
+
+        # Warp effect on Image 1 before entering the model
+        self.play(img1.animate.scale(0.1).move_to(model_box.get_center()),
+                  run_time=1.5)
+        
+  
+        # Make Image 1 disappear as it enters the model
+        self.play(FadeOut(img1))
+        self.wait(0.5)
+        
+        self.play(model_group.animate.move_to(LEFT*2))
+        output_label = Text("Output").scale(0.1).move_to(model_box.get_center())
+        self.play(output_label.animate.scale(3).move_to(RIGHT*0.5))
+
+        self.wait(2)
+
+        # Fade out everything
+        self.play(FadeOut(img2, model_group,output_label))
+        ###############################################################
+
+
+        #This section is a brief intro to Generator and Discriminator Networks
+        text = Text("Cycle GANs")
+        text = text.scale(0.5)
+
+        self.play(Write(text))
+        self.wait(1)
+        self.play(FadeOut(text))
+
+
+        text = Text("Generators")
+        text = text.scale(0.5).move_to(UP)
+        self.play(Write(text))
+        
+
+
+
+
+class TestScene(ThreeDScene):
+    def construct(self):
+        img = ImageMobject("assets/color.png").to_edge(LEFT)
+        # Create fine grid
+        grid = [
+            Line(start, end, stroke_width=0.5, color=GRAY)
+            for x in np.linspace(-3, -1.5, 15) for start, end in [
+                ([x, -1, 0], [x, 1, 0])
+            ]
+        ]
+        grid.extend(
+            [
+            Line(start, end, stroke_width=0.5, color=GRAY)
+            for x in np.linspace(-3, -1, 15) for start, end in [
+                ([-3, x+2, 0], [-1.5, x+2, 0])
+            ]
+        ])
+
+        fine_grid = VGroup(*grid)
+        fine_grid.set_opacity(0)  # Initially invisible
+
+        # Smaller rectangular latent space grid
+        latent_grid = VGroup(*[
+            Line(start, end, stroke_width=1.5, color=WHITE)
+            for x in np.linspace(-1.5, 1.5, 6) for start, end in [
+                ([-1.5, x, 0], [1.5, x, 0]),
+                ([x, -1.5, 0], [x, 1.5, 0])
+            ]
+        ])
+        latent_grid.move_to(RIGHT * 1).scale(0.6).set_opacity(1)  # Start hidden
+
+        # Latent space label
+        latent_text = Text("Latent Space", font_size=14).next_to(latent_grid, DOWN).set_opacity(0)
+
+        # Show image
+        self.play(FadeIn(img))
+        self.wait(1)
+
+        # Fade out image while fading in the fine grid
+        self.play(FadeOut(img), fine_grid.animate.set_opacity(1), run_time=1.5)
+        self.wait(1)
+
+        # Transform fine grid into latent space grid
+        self.play(Transform(fine_grid, latent_grid), run_time=1.5)
+        self.wait(0.5)
+
+        # Show latent space label
+        self.play(FadeIn(latent_text))
+        self.wait(2)
+
+        # Fade everything out
+        self.play(FadeOut(latent_grid, latent_text))

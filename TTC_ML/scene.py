@@ -1,4 +1,7 @@
+import random
 from manim import *
+from PIL import Image,ImageFilter
+import numpy as np
 
 img1_path = "assets/Horse.png"
 img2_path = "assets/Zebra.png"
@@ -93,7 +96,14 @@ config.frame_width = 7.0
 
 # Here we define our basic scene
 class BasicScene(ThreeDScene):
-
+    def apply_blur(self, img_path, blur_radius):
+        """Applies Gaussian blur to an image and saves it temporarily."""
+        img = Image.open(img_path)
+        blurred = img.filter(ImageFilter.GaussianBlur(blur_radius))
+        temp_path = "assets/temp_blurred.png"
+        blurred.save(temp_path)
+        return temp_path
+    
     # The code for generating our scene goes here
     def construct(self):
         horse = Image.open(img1_path)
@@ -170,18 +180,18 @@ class BasicScene(ThreeDScene):
         self.wait(1)
 
         text = Text("But how to do it?").scale(0.4).move_to(UP)
-        think = ImageMobject("assets/thinker.png").scale(0.5).move_to(DOWN*0.5)
-        self.add(think)
-        self.add(text)
+        think = ImageMobject("assets/thinker.png").scale(1.5).move_to(DOWN*0.5)
+        thinker = VGroup(text,think)
+        self.play(FadeIn(thinker))
 
         self.wait(2)
-
+        self.play(FadeOut(thinker))
 
         #This section demonstrates the requirement for pair-wise iamges for style transfer
         # Black and White and Color Image is taken
         #############################################################333
-        img1 = ImageMobject("assets/bw.png").scale(1).to_edge(LEFT)
-        img2 = ImageMobject("assets/color.png").scale(1).to_edge(RIGHT)
+        img1 = ImageMobject("assets/bw.png").scale(0.5).to_edge(LEFT)
+        img2 = ImageMobject("assets/color.png").scale(0.5).to_edge(RIGHT)
 
         # Model Box
         model_box = Rectangle(width=1, height=1, color=WHITE)
@@ -214,8 +224,50 @@ class BasicScene(ThreeDScene):
         # Fade out everything
         self.play(FadeOut(img2, model_group,output_label))
         ###############################################################
+        #This section talks about the CNN approach
+
+        content = ImageMobject('assets/content.png').move_to(LEFT + UP)
+        content_text = Text("Content Image").move_to(content.get_edge_center(LEFT) + LEFT).scale(0.2)
+        style = ImageMobject('assets/style.png').move_to(RIGHT + UP)
+        style_text = Text("Style Image").move_to(style.get_edge_center(RIGHT) + RIGHT).scale(0.2)
+        blurred_result_path = self.apply_blur("assets/transfered.png", blur_radius=10)
+        result = ImageMobject(blurred_result_path).scale(0.4).move_to(DOWN)
+
+        # Add images to scene
+        self.add(content, style, result,content_text,style_text)
 
 
+        # Create a curved arrow
+        arrowc_r = CurvedArrow(content.get_bottom(), result.get_edge_center(LEFT), color=WHITE, stroke_width=0.5,tip_length = 0.15)
+        arrows_r = CurvedArrow(style.get_bottom(), result.get_edge_center(RIGHT), color =WHITE,stroke_width=0.5,tip_length = 0.15,angle=-PI/2)
+        # Create a pulsating dot that moves along the arrow
+        dot1 = Dot(color=YELLOW).scale(0.2)
+        dot2 = Dot(color=YELLOW).scale(0.2)
+
+        def update_dot1(dot,alpha):
+            """Moves the dot along the arrow with pulsation effect."""
+            dot.move_to(arrowc_r.point_from_proportion(alpha))  # Moves along the curve
+            dot.set_opacity(1 - abs(0.5 - alpha) * 2)  # Pulsates by changing opacity
+
+        def update_dot2(dot,alpha):
+            """Moves the dot along the arrow with pulsation effect."""
+            dot.move_to(arrows_r.point_from_proportion(alpha))  # Moves along the curve
+            dot.set_opacity(1 - abs(0.5 - alpha) * 2)  # Pulsates by changing opacity
+
+        def update_result(mob, alpha):
+            """Updater function to reduce blur effect"""
+            new_blur = int(100 * (1 - alpha))  # Reduce blur over time
+            new_path = self.apply_blur("assets/transfered.png", new_blur)
+            mob.become(ImageMobject(new_path).scale(0.4).move_to(DOWN))
+        # Add elements to scene
+        self.add(content, result, arrowc_r, dot1,arrows_r,dot2)
+
+        # Animate the pulsating effect in a loop
+        self.play([UpdateFromAlphaFunc(dot1,update_dot1),UpdateFromAlphaFunc(dot2, update_dot2),UpdateFromAlphaFunc(result, update_result)], run_time=3, rate_func=linear, repeat=True)
+
+        self.wait(5)
+
+        ###############################################################
         #This section is a brief intro to Generator and Discriminator Networks
         text = Text("Cycle GANs")
         text = text.scale(0.5)
@@ -228,26 +280,21 @@ class BasicScene(ThreeDScene):
         text = Text("Generators")
         text = text.scale(0.5).move_to(UP)
         self.play(Write(text))
-        
 
-
-
-
-class TestScene(ThreeDScene):
-    def construct(self):
-        img = ImageMobject("assets/color.png").to_edge(LEFT)
+        img = ImageMobject("assets/color.png").scale(0.5).to_edge(LEFT)
         # Create fine grid
+        # Try to add pixel values inside the grid
         grid = [
-            Line(start, end, stroke_width=0.5, color=GRAY)
-            for x in np.linspace(-3, -1.5, 15) for start, end in [
+            Line(start, end, stroke_width=0.7, color=WHITE)
+            for x in np.linspace(-3, -1.70, 15) for start, end in [
                 ([x, -1, 0], [x, 1, 0])
             ]
         ]
         grid.extend(
             [
-            Line(start, end, stroke_width=0.5, color=GRAY)
+            Line(start, end, stroke_width=0.7, color=GRAY)
             for x in np.linspace(-3, -1, 15) for start, end in [
-                ([-3, x+2, 0], [-1.5, x+2, 0])
+                ([-3, x+2, 0], [-1.70, x+2, 0])
             ]
         ])
 
@@ -255,17 +302,23 @@ class TestScene(ThreeDScene):
         fine_grid.set_opacity(0)  # Initially invisible
 
         # Smaller rectangular latent space grid
-        latent_grid = VGroup(*[
-            Line(start, end, stroke_width=1.5, color=WHITE)
-            for x in np.linspace(-1.5, 1.5, 6) for start, end in [
-                ([-1.5, x, 0], [1.5, x, 0]),
-                ([x, -1.5, 0], [x, 1.5, 0])
+        latent_grid = [
+            Line(start, end, stroke_width=0.7, color=WHITE)
+            for x in np.linspace(-5, 1.0, 20) for start, end in [
+                ([x, -0.2, 0], [x, 0, 0])
             ]
+        ]
+        latent_grid.extend(
+            [
+            Line([-5,-0.2,0], [1,-0.2,0], stroke_width=0.7, color=WHITE),
+            Line([-5,0,0], [1,0,0], stroke_width=0.5, color=WHITE)
         ])
+
+        latent_grid = VGroup(*latent_grid)
         latent_grid.move_to(RIGHT * 1).scale(0.6).set_opacity(1)  # Start hidden
 
         # Latent space label
-        latent_text = Text("Latent Space", font_size=14).next_to(latent_grid, DOWN).set_opacity(0)
+        latent_text = Text("Latent Space", font_size=14).next_to(latent_grid.center(), DOWN)
 
         # Show image
         self.play(FadeIn(img))
@@ -285,3 +338,35 @@ class TestScene(ThreeDScene):
 
         # Fade everything out
         self.play(FadeOut(latent_grid, latent_text))
+        
+
+
+
+
+class TestScene(ThreeDScene):
+ # Keep scene visible
+    def construct(self):
+        content = ImageMobject('assets/content.png').move_to(LEFT + UP)
+        content_text = Text("Content Image").move_to(content.get_edge_center(LEFT) + LEFT).scale(0.2)
+        style = ImageMobject('assets/style.png').move_to(RIGHT + UP)
+        style_text = Text("Style Image").move_to(style.get_edge_center(RIGHT) + RIGHT).scale(0.2)
+        result = ImageMobject('assets/transfered.png').scale(0.4).move_to(DOWN)
+
+        # Add images to scene
+        self.add(content, style, result,content_text,style_text)
+
+
+        # Create a curved arrow
+        arrowc_r = CurvedArrow(content.get_bottom(), result.get_edge_center(LEFT), color=WHITE, stroke_width=0.5,tip_length = 0.15)
+        arrows_r = CurvedArrow(style.get_bottom(), result.get_edge_center(RIGHT), color =WHITE,stroke_width=0.5,tip_length = 0.15,angle=-PI/2)
+        # Create a pulsating dot that moves along the arrow
+        dot1 = Dot(color=YELLOW).scale(0.2)
+        dot2 = Dot(color=YELLOW).scale(0.2)
+
+        self.add(content, result, arrowc_r, dot1,arrows_r,dot2)
+        self.wait(1)
+        self.play([FadeOut(style,arrows_r),result.animate.move_to(content.get_edge_center(RIGHT)+RIGHT)])
+        self.wait(2) 
+
+
+        

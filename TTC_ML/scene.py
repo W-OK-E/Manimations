@@ -2,6 +2,7 @@ import random
 from manim import *
 from PIL import Image,ImageFilter
 import numpy as np
+import cv2
 
 img1_path = "assets/Horse.png"
 img2_path = "assets/Zebra.png"
@@ -104,6 +105,22 @@ class BasicScene(ThreeDScene):
         blurred.save(temp_path)
         return temp_path
     
+    def load_image_contours(self, image_path):
+        """Loads an image, converts it to grayscale, and extracts contours."""
+        contour_path = 'assets/contour.png'
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        image = cv2.resize(image, (400, 400))
+
+        edges = cv2.Canny(image, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        mask = np.zeros_like(image)
+        cv2.drawContours(mask, contours, -1, (255), 1)
+
+        cv2.imwrite(contour_path, mask)
+        return contour_path
+
+    
     # The code for generating our scene goes here
     def construct(self):
         horse = Image.open(img1_path)
@@ -146,21 +163,6 @@ class BasicScene(ThreeDScene):
         # self.play(FadeOut(Group(en)))
         self.clear()
         self.wait(1)
-
-
-        ## Show a bunch of examples of the same:
-        # orig1 = ImageMobject(horse).scale(0.5)
-        # fake1 = ImageMobject(zebra).scale(0.5)
-        # orig1.move_to(LEFT + UP*0.75)
-        # fake1.move_to(RIGHT + UP*0.75)
-        # self.play(FadeIn(orig1))
-        # self.play(FadeIn(fake1))
-        # self.wait(2)
-        # img2 = ImageMobject('assets/Examples.jpeg').move_to(DOWN*0.5)
-        # self.play(FadeIn(img2))
-        # self.wait(2)
-        
-
 
         text = Text("Examples of Image to Image Translation")
         text.font_size = 15
@@ -266,6 +268,37 @@ class BasicScene(ThreeDScene):
         self.play([UpdateFromAlphaFunc(dot1,update_dot1),UpdateFromAlphaFunc(dot2, update_dot2),UpdateFromAlphaFunc(result, update_result)], run_time=3, rate_func=linear, repeat=True)
 
         self.wait(5)
+        def update_counter(mob,alpha):
+            mob.set_value(1/np.exp(0.1+alpha))
+
+        def update_counter2(mob,alpha):
+            mob.set_value(1/np.exp(random.random()+alpha))
+
+        content_loss_counter = DecimalNumber(0,num_decimal_places=3,font_size=15)
+        content_loss_counter.move_to(content_text.get_bottom() + DOWN)
+        content_loss_text = Text("Content Loss").move_to(content_loss_counter.get_edge_center(DOWN)+0.2*DOWN)
+        content_loss_text.font_size = 15
+
+        style_loss_counter = DecimalNumber(0,num_decimal_places=3,font_size=15)
+        style_loss_counter.move_to(style_text.get_bottom() + DOWN)
+        style_loss_text = Text("Style Loss").move_to(style_loss_counter.get_edge_center(DOWN)+0.2*DOWN)
+        style_loss_text.font_size = 15
+
+        self.add(content_loss_counter,style_loss_counter,content_loss_text,style_loss_text)
+        self.play([UpdateFromAlphaFunc(dot1,update_dot1),UpdateFromAlphaFunc(dot2, update_dot2),
+                   UpdateFromAlphaFunc(result, update_result),UpdateFromAlphaFunc(content_loss_counter, update_counter),
+                   UpdateFromAlphaFunc(style_loss_counter,update_counter2)], run_time=5, rate_func=smooth)
+        self.wait(2)
+        
+        ## Now everything should disappear from the screen and the content image alone should come to the center of the screen
+    
+        self.clear()
+        self.wait(2)
+        self.play(FadeIn(content.center().scale(1)))#Image comes back In
+        contour_path = self.load_image_contours('assets/content.png')   
+        self.wait(2)
+        self.play([FadeOut(content),FadeIn(ImageMobject(contour_path))]) #Contours are displayed
+        self.wait(2)
 
         ###############################################################
         #This section is a brief intro to Generator and Discriminator Networks
@@ -344,29 +377,53 @@ class BasicScene(ThreeDScene):
 
 
 class TestScene(ThreeDScene):
- # Keep scene visible
+    
+    def load_image_contours(self, image_path):
+        """Loads an image, converts it to grayscale, and extracts contours."""
+        contour_path = 'assets/contour.png'
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        image = cv2.resize(image, (400, 400))
+
+        edges = cv2.Canny(image, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        mask = np.zeros_like(image)
+        cv2.drawContours(mask, contours, -1, (255), 1)
+
+        cv2.imwrite(contour_path, mask)
+        return contour_path
+    
     def construct(self):
-        content = ImageMobject('assets/content.png').move_to(LEFT + UP)
-        content_text = Text("Content Image").move_to(content.get_edge_center(LEFT) + LEFT).scale(0.2)
-        style = ImageMobject('assets/style.png').move_to(RIGHT + UP)
-        style_text = Text("Style Image").move_to(style.get_edge_center(RIGHT) + RIGHT).scale(0.2)
-        result = ImageMobject('assets/transfered.png').scale(0.4).move_to(DOWN)
+        contour_path = self.load_image_contours('assets/content.png')   
+        self.wait(2)
+        contour_mob = ImageMobject(contour_path)
+        self.play(FadeIn(contour_mob)) #Contours are displayed
+        self.wait(2)
+        self.play(FadeOut(contour_mob))
+        question = Text("But how to get such features \n       out of an image??")
+        question.font_size = 12
+        self.play([Write(question)])
+        self.wait(2)
+        self.play(FadeOut(question))
+        cv_layer_1=Convolutional2DLayer(1, 7, 2, filter_spacing=0.32,show_grid_lines=True)
+        cv_layer_2=Convolutional2DLayer(1, 5, 3, filter_spacing=0.18,show_grid_lines=True)
+        convolution = NeuralNetwork([
+                cv_layer_1, # Note the default stride is 1.
+                cv_layer_2,
+            ],
+            layer_spacing=0.30,
+        )
 
-        # Add images to scene
-        self.add(content, style, result,content_text,style_text)
+        forward_pass = convolution.make_forward_pass_animation(run_time=10.0)
+        self.play(forward_pass)
+        self.play(FadeOut(convolution))
+        feature_img = ImageMobject('assets/features.png').center().move_to(DOWN*0.3)
+        self.play(FadeIn(feature_img))
+        desc_text = Text("Raw Data\t\tLow Level Features\t\tMid-level Features\t\tHigh Level Features").scale(0.12)
+        desc_text.move_to(feature_img.get_edge_center(UP)+UP*0.2)
+        self.play(Write(desc_text))
 
 
-        # Create a curved arrow
-        arrowc_r = CurvedArrow(content.get_bottom(), result.get_edge_center(LEFT), color=WHITE, stroke_width=0.5,tip_length = 0.15)
-        arrows_r = CurvedArrow(style.get_bottom(), result.get_edge_center(RIGHT), color =WHITE,stroke_width=0.5,tip_length = 0.15,angle=-PI/2)
-        # Create a pulsating dot that moves along the arrow
-        dot1 = Dot(color=YELLOW).scale(0.2)
-        dot2 = Dot(color=YELLOW).scale(0.2)
-
-        self.add(content, result, arrowc_r, dot1,arrows_r,dot2)
-        self.wait(1)
-        self.play([FadeOut(style,arrows_r),result.animate.move_to(content.get_edge_center(RIGHT)+RIGHT)])
-        self.wait(2) 
 
 
-        
+

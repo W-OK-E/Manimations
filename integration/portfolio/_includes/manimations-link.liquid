@@ -1,0 +1,6 @@
+{% assign gallery_path = site.data.manimations.gallery_path | default: '' %}
+{% if gallery_path != '' %}
+  <p><a class="btn btn-outline-primary" href="{{ gallery_path | relative_url }}">Open the animation gallery</a></p>
+{% else %}
+  <p>The animation gallery is coming soon.</p>
+{% endif %}

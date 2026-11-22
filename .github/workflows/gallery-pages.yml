@@ -1,0 +1,55 @@
+name: Publish reviewed animation gallery
+
+# Manual only: pushing this scaffold does not publish the gallery.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: gallery-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@v4
+      - name: Set up Python for static artifact assembly
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Validate om's release and clip choices
+        run: python scripts/stage_pages.py --write-plan build/pages-plan.json
+      - name: Download selected media from this repository's GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          plan = json.loads(Path('build/pages-plan.json').read_text())
+          for asset in plan['assets']:
+              subprocess.run(['gh', 'release', 'download', plan['release_tag'],
+                              '--repo', os.environ['GITHUB_REPOSITORY'],
+                              '--pattern', asset, '--dir', 'build/release-media'], check=True)
+          PY
+      - name: Assemble only the selected gallery files
+        run: python scripts/stage_pages.py
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload static gallery artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/pages
+      - name: Deploy gallery to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

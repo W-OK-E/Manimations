@@ -1,0 +1,4 @@
+# TODO(om): set this to the gallery's project-site path, including both slashes.
+# Hint: the portfolio is the user site (/); the separate repository is Manimations.
+# Keep blank until you are ready to connect the gallery; the page shows no dead link.
+gallery_path: ""

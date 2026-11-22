@@ -1,0 +1,19 @@
+[
+  {
+    "slug": "playback-test",
+    "title": "Hello, Manim!",
+    "tags": [
+      "Fun"
+    ],
+    "description": "This is pretty premitive: the greeting and 1 + 1 = 2 fade in together, then hold. This checks text, LaTeX and video playback; it is a placeholder, not a finished mathematical film."
+  },
+  {
+    "slug": "huffman",
+    "title": "Huffman encoding",
+    "tags": [
+      "Compression",
+      "Computer science"
+    ],
+    "description": "Build a Huffman tree from a sentence, trace its codes, and count the complete file. A short message grows when the tree is included; a longer constructed sample shows how skew and overhead change the result."
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "release_tag": "gallery-media-v1",
+  "approved_slugs": ["huffman"],
+  "_instructions": {
+    "release_tag": "TODO(om): after agreeing on GitHub Releases for media, enter the release tag that will hold the MP4/WebP/JSON assets. No release exists or is created by this config.",
+    "approved_slugs": "TODO(om): choose which finished clips may be published, e.g. [\"huffman\"]. Empty deliberately prevents deployment. Do not include the playback test unless you want it public."
+  }
+}

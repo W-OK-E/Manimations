@@ -6,20 +6,17 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: gallery-pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact_id }}
     steps:
       - name: Check out reviewed source
         uses: actions/checkout@v4
@@ -44,12 +41,37 @@ jobs:
           PY
       - name: Assemble only the selected gallery files
         run: python scripts/stage_pages.py
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
       - name: Upload static gallery artifact
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages
           path: build/pages
-      - name: Deploy gallery to GitHub Pages
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the deployment helper
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy the exact uploaded artifact
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/github-script@v7
+        env:
+          PAGES_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+        with:
+          script: |
+            const deploy = require('./.github/scripts/deploy-pages.cjs');
+            await deploy({ github, core, context, artifactId: process.env.PAGES_ARTIFACT_ID });

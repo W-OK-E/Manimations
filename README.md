@@ -1,5 +1,43 @@
 # Manimations
 
+## Pages deployment fix — 2026-11-23
+
+Two runs uploaded a valid `github-pages` artifact, but `deploy-pages@v5`
+reported zero artifacts immediately afterward. Read-only checks confirmed the
+second artifact ID 14797436705, unexpired and belonging to run 45129501974.
+The exact internal service cause is unconfirmed; another unchanged retry did
+not resolve it. The `punycode` deprecation warning is not the fatal error.
+
+Local fix on `fix/pages-artifact-discovery`:
+
+- The build job exports `upload-pages-artifact@v3`'s `artifact_id` output.
+- A separate deploy job depends on build completion and verifies that exact
+  artifact by ID through the public API, including its name and workflow run.
+- `.github/scripts/deploy-pages.cjs`, invoked through GitHub's github-script
+  action, passes that ID directly to the documented Pages deployment endpoint.
+  It skips the artifact-name listing that returned zero. The upload itself is
+  unchanged; no extra upload or personal access token is introduced.
+- It obtains the normal OIDC token without logging it, polls status, tolerates
+  bounded transient status errors, and cancels on polling timeout. Deployment
+  creation is not blindly retried, avoiding accidental duplicate deployments.
+
+References: [Pages API](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-deployment),
+[uploader output](https://github.com/actions/upload-pages-artifact/blob/v3/action.yml),
+[upstream discovery code](https://github.com/actions/deploy-pages/blob/v5/src/internal/api-client.js).
+
+Validated with `node integration/check_pages_deployment.cjs` (all APIs mocked):
+exact ID, same-run/name/expiry checks, visibility retry, correct OIDC/create
+payload, transient polling errors, success, terminal failure, timeout/cancel
+and invalid-ID/permission rejection. Workflow YAML, job dependency, output
+wiring and permissions also checked. No actual deployment was triggered by
+these tests; this patch still needs a GitHub run after review/merge.
+
+When committing the fix, include **both** `.github/workflows/gallery-pages.yml`
+and `.github/scripts/deploy-pages.cjs`, plus the test/documentation if desired.
+Merge into main and start a new manual workflow on main. Existing local edits
+to integration/pages.json were preserved; its release tag is v1. No agent
+push, merge or deployment has been performed.
+
 Mathematical animations made with Manim Community Edition, with a separate lightweight static video gallery.
 
 Work happens on `gallery/start`. See [TODO.md](TODO.md) for progress. Each animation starts with `animations/<slug>/DESIGN.md`; om reviews its maths and storyboard before scene code or rendering. Preview feedback comes before a final render.

@@ -30,6 +30,7 @@ def main():
         target = COPY / "docs" / name
         target.parent.mkdir(exist_ok=True)
         shutil.copy2(ROOT / "docs" / name, target)
+    shutil.copytree(ROOT / "docs/fonts", COPY / "docs/fonts", dirs_exist_ok=True)
     frontend_before = {name: digest(COPY / "docs" / name) for name in ("index.html", "gallery.css", "gallery.js")}
     catalog = COPY / "animations/catalog.json"
     catalog.parent.mkdir(exist_ok=True)

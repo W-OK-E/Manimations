@@ -50,13 +50,16 @@ def stage(config_path, media_dir, destination):
         entries.append(metadata)
         files.extend(assets)
     frontend = [ROOT / "docs" / name for name in ("index.html", "gallery.css", "gallery.js")]
+    frontend.extend(sorted((ROOT / "docs/fonts").glob("*")))
     total = sum(file.stat().st_size for file in files + frontend)
     if total >= 999_000_000:
         raise ValueError("Artifact exceeds the staging budget below GitHub Pages' 1 GB site limit")
     destination.mkdir(parents=True, exist_ok=True)
     (destination / "media").mkdir(exist_ok=True)
     for file in frontend:
-        shutil.copy2(file, destination / file.name)
+        target = destination / file.relative_to(ROOT / "docs")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(file, target)
     for file in files:
         shutil.copy2(file, destination / "media" / file.name)
     publish(entries, destination)

@@ -15,6 +15,7 @@ def main():
         destination.mkdir(parents=True, exist_ok=True)
         for name in ("index.html", "gallery.css", "gallery.js"):
             shutil.copy2(ROOT / "docs" / name, destination / name)
+        shutil.copytree(ROOT / "docs/fonts", destination / "fonts", dirs_exist_ok=True)
         shutil.copytree(ROOT / "docs/media", destination / "media", dirs_exist_ok=True)
         items = [dict(original, slug=f"sample-{i:04d}", title=f"Playback sample {i + 1}",
                       tags=["Compression" if i % 2 == 0 else "Technical preview"],

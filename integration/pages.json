@@ -1,5 +1,5 @@
 {
-  "release_tag": "gallery-media-v1",
+  "release_tag": "v1",
   "approved_slugs": ["huffman"],
   "_instructions": {
     "release_tag": "TODO(om): after agreeing on GitHub Releases for media, enter the release tag that will hold the MP4/WebP/JSON assets. No release exists or is created by this config.",
